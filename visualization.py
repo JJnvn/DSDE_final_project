@@ -5,11 +5,29 @@ import pydeck as pdk
 import matplotlib.pyplot as plt
 import plotly.express as px
 import textwrap
+import redis, json
+import streamlit as st, pandas as pd
+from sklearn.cluster import DBSCAN
+import pydeck as pdk, matplotlib.pyplot as plt, plotly.express as px, textwrap
 
 # Load Data
 @st.cache_data
 def load_data():
-    df = pd.read_csv('cleanv3.csv')
+    rd = redis.Redis(encoding="utf‑8", decode_responses=True)
+
+    # grab all row keys that our loader created
+    keys = rd.smembers("cleanv3:keys")          # same SET_NAME as above
+    if not keys:
+        st.stop()   # nothing in Redis; avoids crashing
+
+    # pipeline gets everything in one round‑trip
+    pipe = rd.pipeline()
+    for k in keys:
+        pipe.get(k)
+    rows_json = pipe.execute()
+
+    rows = [json.loads(r) for r in rows_json]   # back to dicts
+    df = pd.DataFrame(rows)
     return df
 
 def preprocess_data(df):
